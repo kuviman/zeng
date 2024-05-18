@@ -13,11 +13,25 @@
       in
       with pkgs;
       {
-        devShells.default = mkShell {
-          buildInputs = [
-            zig
-          ];
-        };
+        devShells.default = mkShell
+          {
+            buildInputs = [
+              glew
+              glfw3
+              cmake
+              zig
+              zls
+              wayland-scanner
+              libGL
+              xorg.libX11
+              xorg.libXcursor
+              xorg.libXrandr
+              xorg.libXinerama
+              xorg.libXi
+              wayland
+              libxkbcommon
+            ];
+          };
       }
     );
 }

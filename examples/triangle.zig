@@ -210,6 +210,7 @@ pub fn main() anyerror!void {
 
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MAJOR, 3);
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 3);
+    c.glfwWindowHint(c.GLFW_OPENGL_DEBUG_CONTEXT, c.GLFW_TRUE);
     const window: *c.GLFWwindow = c.glfwCreateWindow(640, 480, "My Title", null, null) orelse {
         @panic("no window");
     };
@@ -231,7 +232,7 @@ pub fn main() anyerror!void {
         const fragment_source align(4) = @embedFile("fragment.glsl").*;
         const fragment = Shader.init(c.GL_FRAGMENT_SHADER, &fragment_source, alloc);
         defer fragment.deinit();
-        break :program Program.init(&.{fragment}, alloc);
+        break :program Program.init(&.{ vertex, fragment }, alloc);
     };
     defer program.deinit();
 
@@ -250,6 +251,8 @@ pub fn main() anyerror!void {
         var height: c_int = undefined;
         c.glfwGetFramebufferSize(window, &width, &height);
         c.glViewport(0, 0, width, height);
+
+        c.glClearColor(0.8, 0.8, 0.8, 1.0);
         c.glClear(c.GL_COLOR_BUFFER_BIT);
 
         vao.bind();

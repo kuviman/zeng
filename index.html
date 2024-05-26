@@ -6,41 +6,8 @@
 
 <body>
   <script type="module">
-    import * as zeng from "./zeng.js";
-    zeng.zeng_say_hello();
-    async function init() {
-      let wasmPromise = fetch("zeng-example.wasm"); // TODO build.zig should automate this
-
-      /** @type { WebAssembly.Instance } */
-      let wasm;
-
-      /** @type { WebAssembly.Memory } */
-      let wasmMemory;
-
-      /**
-       * @param { number } c_str
-       * @param { number } len
-       * @returns { string }
-       */
-      function get_c_str(c_str, len) {
-        const slice = new Uint8Array(
-          wasmMemory.buffer, // memory exported from Zig
-          c_str,
-          len,
-        );
-        return new TextDecoder().decode(slice);
-      }
-
-      // let WebAssembly wasm;
-      WebAssembly.instantiateStreaming(wasmPromise, {
-        env: zeng,
-      }).then(result => {
-        wasm = result.instance;
-        wasmMemory = wasm.exports.memory;
-        wasm.exports._start();
-      });
-    }
-    init();
+    import { init } from "./zeng.js";
+    init("zeng-example.wasm"); // TODO build.zig should automate this
   </script>
 </body>
 

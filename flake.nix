@@ -35,6 +35,9 @@
               libxkbcommon
               renderdoc
             ];
+            shellHook = ''
+              export LD_LIBRARY_PATH=${wayland}/lib:$LD_LIBRARY_PATH
+            '';
           };
       }
     );

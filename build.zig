@@ -46,14 +46,16 @@ pub fn build(b: *std.Build) void {
             install.step.dependOn(&dist_clean.step);
             dist.dependOn(&install.step);
         }
+        example_exe.rdynamic = true;
     }
 
-    const run_example = b.step("run-example", "Run the example");
-    const example_run_cmd = b.addRunArtifact(example_exe);
+    const run = b.step("run", "Run the example");
+    const run_cmd = b.addRunArtifact(example_exe);
     if (b.args) |args| {
-        example_run_cmd.addArgs(args);
+        // TODO set cwd to dist
+        run_cmd.addArgs(args);
     }
-    run_example.dependOn(&example_run_cmd.step);
+    run.dependOn(&run_cmd.step);
 
     const triangle_exe = b.addExecutable(.{
         .name = "zeng-triangle",

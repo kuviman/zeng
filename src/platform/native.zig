@@ -54,7 +54,9 @@ pub const Shader = struct {
     }
 };
 
-const Attribute = struct {};
+const Attribute = struct {
+    index: usize,
+};
 const Uniform = struct {};
 
 pub const Program = struct {
@@ -94,7 +96,7 @@ pub const Program = struct {
             c.__glewGetProgramiv.?(program, c.GL_ACTIVE_ATTRIBUTES, &attribute_count);
             std.log.debug("attribute count = {d}", .{attribute_count});
 
-            const attributes = std.StringHashMap(Attribute).init(engine.allocator);
+            var attributes = std.StringHashMap(Attribute).init(engine.allocator);
 
             var max_attribute_name_len: c.GLint = undefined;
             c.__glewGetProgramiv.?(program, c.GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &max_attribute_name_len);
@@ -102,13 +104,17 @@ pub const Program = struct {
             var buffer: []u8 = engine.allocator.alloc(u8, @intCast(max_attribute_name_len)) catch {
                 @panic("oom");
             };
-            for (0..@intCast(attribute_count)) |attribute| {
+            for (0..@intCast(attribute_count)) |index| {
                 var len: c.GLsizei = undefined;
                 var size: c.GLint = undefined;
                 var @"type": c.GLenum = undefined;
-                c.__glewGetActiveAttrib.?(program, @intCast(attribute), @intCast(buffer.len), &len, &size, &@"type", buffer.ptr);
+                c.__glewGetActiveAttrib.?(program, @intCast(index), @intCast(buffer.len), &len, &size, &@"type", buffer.ptr);
                 const name = buffer[0..@intCast(len)];
                 std.log.debug("attibute {s}", .{name});
+                const name_copy = engine.allocator.dupe(u8, name) catch @panic("oom");
+                attributes.put(name_copy, .{
+                    .index = index,
+                }) catch @panic("oom");
             }
             break :attributes attributes;
         };
@@ -148,8 +154,52 @@ pub const Program = struct {
         c.__glewUseProgram.?(self.program);
     }
 
-    pub fn deinit(self: Self) void {
+    pub fn deinit(self: *Self) void {
         c.__glewDeleteProgram.?(self.program);
+        self.attributes.deinit();
+    }
+};
+
+pub const VertexBuffer = struct {
+    const Self = @This();
+
+    buffer: c.GLuint,
+
+    pub fn init(data: []const u8) Self {
+        var buffer: c.GLuint = undefined;
+        c.__glewCreateBuffers.?(1, &buffer);
+        if (buffer == 0) {
+            @panic("no buffer");
+        }
+        c.__glewBindBuffer.?(c.GL_ARRAY_BUFFER, buffer);
+        c.__glewBufferData.?(c.GL_ARRAY_BUFFER, @intCast(data.len), data.ptr, c.GL_STATIC_DRAW);
+        return .{
+            .buffer = buffer,
+        };
+    }
+
+    pub fn bind(self: Self) void {
+        c.__glewBindBuffer.?(c.GL_ARRAY_BUFFER, self.buffer);
+    }
+
+    pub fn deinit(self: Self) void {
+        c.__glewDeleteBuffers.?(1, &self.buffer);
+    }
+};
+
+pub const VAO = struct {
+    const Self = @This();
+    object: c.GLuint,
+    pub fn init() Self {
+        var object: c.GLuint = undefined;
+        c.__glewGenVertexArrays.?(1, &object);
+        return .{ .object = object };
+    }
+    pub fn bind(self: Self) void {
+        c.__glewBindVertexArray.?(self.object);
+    }
+    pub fn deinit(self: Self) void {
+        c.__glewDeleteVertexArrays.?(1, &self.object);
     }
 };
 
@@ -213,4 +263,42 @@ pub const State = struct {
             c.glfwPollEvents();
         }
     }
+
+    pub fn vertex_attrib_pointer(
+        _: Self,
+        program: Program,
+        comptime vertex: type,
+        comptime field: std.builtin.Type.StructField,
+        normalized: bool,
+    ) void {
+        const attribute_info = program.attributes.get(field.name) orelse return;
+        c.__glewEnableVertexAttribArray.?(@intCast(attribute_info.index));
+        const size, const gl_type = switch (@typeInfo(field.type)) {
+            .Array => |array| .{ array.len, gl_type_for(array.child) },
+            else => @compileError("field type must be array"),
+        };
+        // std.log.debug("{s} = {d}", .{ field.name, attribute_info.index });
+        c.__glewVertexAttribPointer.?(
+            @intCast(attribute_info.index),
+            size,
+            gl_type,
+            if (normalized) c.GL_TRUE else c.GL_FALSE,
+            @sizeOf(vertex),
+            @ptrFromInt(@offsetOf(vertex, field.name)),
+        );
+    }
+
+    pub fn draw_arrays(_: Self, mode: zeng.DrawMode, first: usize, count: usize) void {
+        const gl_mode = switch (mode) {
+            .Triangles => c.GL_TRIANGLES,
+        };
+        c.glDrawArrays(gl_mode, @intCast(first), @intCast(count));
+    }
 };
+
+fn gl_type_for(comptime t: type) c.GLenum {
+    if (t == f32) {
+        return c.GL_FLOAT;
+    }
+    @compileError("Unknown type for OpenGL");
+}

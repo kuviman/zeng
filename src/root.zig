@@ -83,7 +83,50 @@ pub const Program = struct {
         };
     }
 
-    pub fn deinit(self: Self) void {
+    fn use(self: Self) void {
+        self.platform.use();
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.platform.deinit();
+    }
+};
+
+pub fn VertexBuffer(comptime vertex: type) type {
+    return struct {
+        const Self = @This();
+
+        platform: platform.VertexBuffer,
+        count: usize,
+
+        pub fn init(data: []const vertex) Self {
+            const raw: [*c]const u8 = @ptrCast(data.ptr);
+            return .{
+                .platform = platform.VertexBuffer.init(raw[0 .. data.len * @sizeOf(vertex)]),
+                .count = data.len,
+            };
+        }
+
+        pub fn bind(self: Self) void {
+            self.platform.bind();
+        }
+
+        pub fn deinit(self: Self) void {
+            self.platform.deinit();
+        }
+    };
+}
+
+const VAO = struct {
+    const Self = @This();
+    platform: platform.VAO,
+    pub fn init() Self {
+        return .{ .platform = platform.VAO.init() };
+    }
+    pub fn bind(self: Self) void {
+        self.platform.bind();
+    }
+    pub fn deinit(self: *Self) void {
         self.platform.deinit();
     }
 };
@@ -100,6 +143,10 @@ pub const State = struct {
 };
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+
+pub const DrawMode = enum(u32) {
+    Triangles = 0,
+};
 
 pub const Zeng = struct {
     const Self = @This();
@@ -119,6 +166,23 @@ pub const Zeng = struct {
 
     pub fn clear(self: Self, r: f32, g: f32, b: f32, a: f32) void {
         self.platform.clear(r, g, b, a);
+    }
+
+    pub fn draw(self: Self, comptime vertex: type, program: Program, buffer: VertexBuffer(vertex)) void {
+        var vao = VAO.init();
+        defer vao.deinit();
+        vao.bind();
+        program.use();
+        buffer.bind();
+        inline for (std.meta.fields(vertex)) |field| {
+            // std.log.info("doing field {s}", .{field.name});
+            self.platform.vertex_attrib_pointer(program.platform, vertex, field, false);
+        }
+        self.platform.draw_arrays(
+            .Triangles,
+            0,
+            buffer.count,
+        );
     }
 
     pub fn current_time(self: Self) f32 {

@@ -56,25 +56,4 @@ pub fn build(b: *std.Build) void {
         run_cmd.addArgs(args);
     }
     run.dependOn(&run_cmd.step);
-
-    const triangle_exe = b.addExecutable(.{
-        .name = "zeng-triangle",
-        .root_source_file = b.path("examples/triangle.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    b.installArtifact(triangle_exe);
-    const triangle_run_cmd = b.addRunArtifact(triangle_exe);
-    if (b.args) |args| {
-        triangle_run_cmd.addArgs(args);
-    }
-    const run_step = b.step("run-triangle", "Run the triangle example");
-    run_step.dependOn(&triangle_run_cmd.step);
-    if (!target.result.isWasm()) {
-        triangle_exe.linkSystemLibrary("GLEW");
-        triangle_exe.linkSystemLibrary("glfw");
-        triangle_exe.linkSystemLibrary("GL");
-        triangle_exe.linkLibC();
-    }
 }

@@ -1,10 +1,14 @@
 const std = @import("std");
-const testing = std.testing;
 
-export fn add(a: i32, b: i32) i32 {
-    return a + b;
+extern fn wasm_log([*c]const u8, usize) void;
+
+fn log(s: []const u8) void {
+    wasm_log(s.ptr, s.len);
 }
 
-test "basic add functionality" {
-    try testing.expect(add(3, 7) == 10);
+// getting ziggy with it
+pub fn main() void {
+    // std.debug.print("hello", .{});
+    // std.log.warn("hello", .{});
+    log("Hello, world");
 }

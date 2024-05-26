@@ -1,6 +1,7 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
-const c = @cImport({
+const c = if (builtin.target.isWasm()) struct {} else @cImport({
     @cInclude("GL/glew.h");
     @cInclude("GLFW/glfw3.h");
     @cInclude("GL/gl.h");

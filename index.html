@@ -1,0 +1,46 @@
+<html>
+
+<head></head>
+
+<body>
+  <script>
+    async function init() {
+      let response = await fetch("web.wasm");
+      let ab = await response.arrayBuffer();
+
+      /** @type { WebAssembly.Instance } */
+      let wasm;
+
+      /** @type { WebAssembly.Memory } */
+      let wasmMemory;
+
+      /**
+       * @param { number } c_str
+       * @param { number } len
+       * @returns { string }
+       */
+      function get_c_str(c_str, len) {
+        const slice = new Uint8Array(
+          wasmMemory.buffer, // memory exported from Zig
+          c_str,
+          len,
+        );
+        return new TextDecoder().decode(slice);
+      }
+
+      // let WebAssembly wasm;
+      WebAssembly.instantiate(ab, {
+        env: {
+          wasm_log: (c_str, len) => { console.log(get_c_str(c_str, len)); },
+        }
+      }).then(result => {
+        wasm = result.instance;
+        wasmMemory = wasm.exports.memory;
+        wasm.exports._start();
+      });
+    }
+    init();
+  </script>
+</body>
+
+</html>

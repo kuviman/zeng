@@ -6,13 +6,11 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const lib = b.addStaticLibrary(.{
-        .name = "zeng",
+    const zeng_module = b.addModule("zeng", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
     });
-    b.installArtifact(lib);
 
     const example_exe = b.addExecutable(.{
         .name = "zeng-example",
@@ -20,6 +18,14 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    if (!target.result.isWasm()) {
+        example_exe.linkSystemLibrary("GLEW");
+        example_exe.linkSystemLibrary("glfw");
+        example_exe.linkSystemLibrary("GL");
+        example_exe.linkLibC();
+    }
+    example_exe.root_module.addImport("zeng", zeng_module);
+    // example_exe.modu(lib);
 
     const dist = b.step("dist", "do dist");
     const dist_clean = b.addRemoveDirTree(std.fs.path.join(b.allocator, &.{
@@ -35,9 +41,11 @@ pub fn build(b: *std.Build) void {
     dist.dependOn(&dist_install_exe.step);
 
     if (target.result.isWasm()) {
-        const index_html = b.addInstallFile(b.path("index.html"), "dist/index.html");
-        index_html.step.dependOn(&dist_clean.step);
-        dist.dependOn(&index_html.step);
+        for ([_][]const u8{ "index.html", "zeng.js", "zeng.css" }) |file| {
+            const install = b.addInstallFile(b.path(file), std.fs.path.join(b.allocator, &.{ "dist", file }) catch @panic("oom"));
+            install.step.dependOn(&dist_clean.step);
+            dist.dependOn(&install.step);
+        }
     }
 
     const run_example = b.step("run-example", "Run the example");

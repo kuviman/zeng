@@ -17,6 +17,8 @@
         devShells.default = mkShell
           {
             buildInputs = [
+              just
+              caddy
               glew
               glfw3
               cmake

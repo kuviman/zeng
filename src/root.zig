@@ -1,14 +1,20 @@
-const std = @import("std");
+const builtin = @import("builtin");
+const platform = switch (builtin.target.isWasm()) {
+    true => @import("platform/web.zig"),
+    false => @import("platform/native.zig"),
+};
 
-extern fn wasm_log([*c]const u8, usize) void;
+pub const Zeng = struct {
+    const Self = @This();
 
-fn log(s: []const u8) void {
-    wasm_log(s.ptr, s.len);
-}
+    platform: platform.State,
 
-// getting ziggy with it
-pub fn main() void {
-    // std.debug.print("hello", .{});
-    // std.log.warn("hello", .{});
-    log("Hello, world");
-}
+    pub fn init() Self {
+        return .{
+            .platform = platform.State.init(),
+        };
+    }
+    pub fn deinit(self: Self) void {
+        self.platform.deinit();
+    }
+};

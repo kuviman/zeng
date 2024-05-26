@@ -1,12 +1,15 @@
 <html>
 
-<head></head>
+<head>
+  <link rel="stylesheet" href="zeng.css">
+</head>
 
 <body>
-  <script>
+  <script type="module">
+    import * as zeng from "./zeng.js";
+    zeng.zeng_say_hello();
     async function init() {
-      let response = await fetch("web.wasm");
-      let ab = await response.arrayBuffer();
+      let wasmPromise = fetch("zeng-example.wasm"); // TODO build.zig should automate this
 
       /** @type { WebAssembly.Instance } */
       let wasm;
@@ -29,10 +32,8 @@
       }
 
       // let WebAssembly wasm;
-      WebAssembly.instantiate(ab, {
-        env: {
-          wasm_log: (c_str, len) => { console.log(get_c_str(c_str, len)); },
-        }
+      WebAssembly.instantiateStreaming(wasmPromise, {
+        env: zeng,
       }).then(result => {
         wasm = result.instance;
         wasmMemory = wasm.exports.memory;
